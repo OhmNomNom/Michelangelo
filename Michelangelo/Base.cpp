@@ -1,8 +1,6 @@
 #include "Base.h"
 
-UBYTE stateFlags = 0x00;
-
-//Needed to make one thatreturns 0 on all invalid inputs
+//Needed to make one that returns 0 on all invalid inputs
 UINT sParseUINT(const char *str) {
   UINT buffer = 0;
   for (int i = 0; str[i] != '\0'; i++) {

@@ -21,10 +21,15 @@ static const UBYTE X_FLAG      = 0x01,
                    Z_DIRPORT   = 5,
                    E_DIRPORT   = 5;
                   
-static const UINT  X_STEPSMILLI  = 800,
-                   Y_STEPSMILLI = 800,
-                   Z_STEPSMILLI = 800,
-                   E_STEPSMILLI = 800;
+static const UINT  X_STEPSREV  = 800,
+                   Y_STEPSREV  = 800,
+                   Z_STEPSREV  = 800,
+                   E_STEPSREV  = 800,
+                  
+                   X_REVSMILI  = 1,
+                   Y_REVSMILI  = 1,
+                   Z_REVSMILI  = 1,
+                   E_REVSMILI  = 1;
                   
 static const bool  X_INVERT    = false,
                    Y_INVERT    = false,
@@ -44,10 +49,12 @@ static const UBYTE FLAG     [] = {X_FLAG    ,Y_FLAG    ,Z_FLAG    ,E_FLAG    },
                    MOVPORT  [] = {X_MOVPORT ,Y_MOVPORT ,Z_MOVPORT ,E_MOVPORT },
                    DIRPORT  [] = {X_DIRPORT ,Y_DIRPORT ,Z_DIRPORT ,E_DIRPORT };
                    
-static const UINT  STEPSMILLI [] = {X_STEPSMILLI,Y_STEPSMILLI,Z_STEPSMILLI,E_STEPSMILLI};
+static const UINT  STEPSREV [] = {X_STEPSREV,Y_STEPSREV,Z_STEPSREV,E_STEPSREV},
+                   REVSMILI [] = {X_REVSMILI,Y_REVSMILI,Z_REVSMILI,E_REVSMILI};
 
 static const float MAXSPEED [] = {X_MAXSPEED,Y_MAXSPEED,Z_MAXSPEED,E_MAXSPEED},
-                   STEPLENGTH[] = {1.0f/X_STEPSMILLI,1.0f/Y_STEPSMILLI,1.0f/Z_STEPSMILLI,1.0f/E_STEPSMILLI} ;
+
+                   STEPLENGTH[] = {float(X_REVSMILI)/X_STEPSREV, float(Y_REVSMILI)/Y_STEPSREV, float(Z_REVSMILI)/Z_STEPSREV, float(E_REVSMILI)/E_STEPSREV} ;
                   
 static const bool  INVERT   [] = {X_INVERT  ,Y_INVERT  ,Z_INVERT  ,E_INVERT  };
 
@@ -58,7 +65,7 @@ enum AxisIndex : UBYTE {
   Z,
   E,
   F,//Feed rate
-  S //Temperature
+  D //Extrusion rate
 };
 
 struct Axis {

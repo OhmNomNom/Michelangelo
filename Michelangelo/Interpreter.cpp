@@ -1,10 +1,12 @@
 #include "Interpreter.h"
+#include "Axes.h"
 
 UINT cmdLine,
      lineCounter,
      movementLine;
 Command command;
-UBYTE bufferPosition;
+UBYTE bufferPosition,
+      stateFlags = 0x00;
 CommandStates cmdState;
 char cmdBuffer[CMDBUFFER_SIZE+1],
      checksum;
@@ -93,20 +95,11 @@ reparse:
       command = CMD_RECOVER;
     else if (strEqual(cmdBuffer,"M114"))
       command = CMD_POSITION;
-    else if (strEqual(cmdBuffer,"M105"))
-      command = CMD_GETTEMP;
-    else if (strEqual(cmdBuffer,"M03"))
-      command = CMD_HOTEND_ON;
-    else if (strEqual(cmdBuffer,"M05"))
-      command = CMD_HOTEND_OFF;
-    else if (strEqual(cmdBuffer,"M104"))
-      command = CMD_SETTEMP;
     else {
       cmdState = STATE_INVALID;
       break;
     }
-    cmdState = STATE_PARAMS; 
-    cmdParams[X] = cmdParams[Y] = cmdParams[Z] = cmdParams[E] = cmdParams[F] = cmdParams[S] = NAN;
+    cmdState = STATE_PARAMS;  
     break;
   case STATE_PARAMS:
     if(bufferPosition < 2) {
@@ -135,8 +128,8 @@ reparse:
       case 'F':
         cmdParams[F] = input;
         break;
-      case 'S':
-        cmdParams[S] = input;
+      case 'D':
+        cmdParams[D] = input;
         break;
       default:
         cmdState = STATE_INVALID;
@@ -193,31 +186,11 @@ void execCommand() {
     cmdPosition();
     break;
   case CMD_MODEABS:
-    stateFlags |= FLAG_ABSOLUTE_MODE;
+    stateFlags |= FLAG_ABSOLUTE;
     acknowledgeCommand();
     break;
   case CMD_MODEINC:
-    stateFlags &= ~FLAG_ABSOLUTE_MODE;
-    acknowledgeCommand();
-    break;
-  case CMD_SETTEMP:
-    cmdSetTemperature();
-    break;
-  case CMD_GETTEMP:
-    Serial.print("M105 T");
-    Serial.print(getExtruderTemperature(),2);
-    Serial.print(" SM");    
-    Serial.print(targetTemperature,2);
-    Serial.print(" F");    
-    Serial.print(temperatureRange,2);
-    Serial.print("\n");
-    break;
-  case CMD_HOTEND_ON:
-    startTemperatureWorker();
-    acknowledgeCommand();
-    break;
-  case CMD_HOTEND_OFF:
-    stopTemperatureWorker();
+    stateFlags &= ~FLAG_ABSOLUTE;
     acknowledgeCommand();
     break;
   }
@@ -235,7 +208,7 @@ inline void clearPrevCommand() {
     cmdParams[Z] = 0;
     cmdParams[E] = 0;
     cmdParams[F] = 0;
-    cmdParams[S] = 0;
+    cmdParams[D] = 0;
 }
 
 void doneMoving() {
@@ -259,7 +232,7 @@ inline void acknowledgeCommand() {
 
 void rapidPositioning() {
   float motion[3];
-  if(stateFlags & FLAG_ABSOLUTE_MODE) {
+  if(stateFlags & FLAG_ABSOLUTE) {
     motion[X] = cmdParams[X] - axisPosition[X]*STEPLENGTH[X];
     motion[Y] = cmdParams[Y] - axisPosition[Y]*STEPLENGTH[Y];
     motion[Z] = cmdParams[Z] - axisPosition[Z]*STEPLENGTH[Z];
@@ -276,13 +249,13 @@ void rapidPositioning() {
   startStepperWorker();
 }
 void linearInterpolation() {
-  if(cmdParams[F] > MAXSPEED_LINEAR || cmdParams[S] > MAXSPEED[E]) {
+  if(cmdParams[F] > MAXSPEED_LINEAR || cmdParams[D] > MAXSPEED[E]) {
     invalidCommand();
     return;
   }
   
   float motion[3];
-  if(stateFlags & FLAG_ABSOLUTE_MODE) {
+  if(stateFlags & FLAG_ABSOLUTE) {
     motion[X] = cmdParams[X] - axisPosition[X]*STEPLENGTH[X];
     motion[Y] = cmdParams[Y] - axisPosition[Y]*STEPLENGTH[Y];
     motion[Z] = cmdParams[Z] - axisPosition[Z]*STEPLENGTH[Z];
@@ -326,7 +299,7 @@ void cmdEcho() {
   Serial.print(" F");
   Serial.print(cmdParams[E],DISPLAY_PRECISION);
   Serial.print(" D");
-  Serial.print(cmdParams[S],DISPLAY_PRECISION);
+  Serial.print(cmdParams[D],DISPLAY_PRECISION);
   Serial.print("\n");
 }
 
@@ -370,11 +343,4 @@ void cmdPosition() {
   Serial.print(" E");
   Serial.print(axisPosition[E]*STEPLENGTH[E],DISPLAY_PRECISION);
   Serial.print("\n");
-}
-
-void cmdSetTemperature() {
-  if(isnan(cmdParams[S]) && isnan(cmdParams[F])) return invalidCommand();
-  if(!isnan(cmdParams[S])) targetTemperature = cmdParams[S];
-  if(!isnan(cmdParams[F]) && cmdParams[F] > 0) temperatureRange = cmdParams[F];
-  acknowledgeCommand();
 }

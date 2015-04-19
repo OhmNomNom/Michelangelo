@@ -32,8 +32,8 @@ bool moveAxis(AxisIndex axis, float distance, float rate) {
   
   if(distance < 0) distance = -distance;
   
-  Axes[axis].steps      = distance * STEPSMILLI[axis];
-  Axes[axis].stepTime   = 1000000UL / (rate * STEPSMILLI[axis]);
+  Axes[axis].steps      = distance * STEPSREV[axis] * REVSMILI[axis];
+  Axes[axis].stepTime   = 1000000UL / (rate * STEPSREV[axis] * REVSMILI[axis]);
   Axes[axis].lastMicros = 0;
   
   axisFlags |= FLAG[axis];

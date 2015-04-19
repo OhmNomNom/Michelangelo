@@ -3,10 +3,11 @@
 
 #include "Base.h"
 #include "Axes.h"
-#include "Extruder.h"
 
 static const UBYTE CMDBUFFER_SIZE = 15;
 static const UBYTE DISPLAY_PRECISION = 2;
+
+static const UBYTE FLAG_ABSOLUTE = 0x01;
 
 enum Command : UBYTE {
   CMD_NONE = 0,
@@ -19,11 +20,7 @@ enum Command : UBYTE {
   CMD_RECOVER,
   CMD_POSITION,
   CMD_MODEABS,
-  CMD_MODEINC,
-  CMD_GETTEMP,
-  CMD_HOTEND_ON,
-  CMD_HOTEND_OFF,
-  CMD_SETTEMP
+  CMD_MODEINC
 };
 
 enum CommandStates : UBYTE {
@@ -35,11 +32,13 @@ enum CommandStates : UBYTE {
   STATE_INVALID = 255
 };
 
+
 extern UINT cmdLine,
             lineCounter,
             movementLine;
 extern Command command;
-extern UBYTE bufferPosition;
+extern UBYTE bufferPosition,
+             stateFlags;
 extern CommandStates cmdState;
 extern char cmdBuffer[],
             checksum;
@@ -61,6 +60,5 @@ inline void cmdHalt();
 void cmdResume();
 void cmdRecover();
 void cmdPosition();
-void cmdSetTemperature();
 
 #endif
