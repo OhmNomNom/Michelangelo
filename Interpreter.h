@@ -6,7 +6,6 @@
 #include "Extruder.h"
 
 static const UBYTE CMDBUFFER_SIZE = 15;
-static const UBYTE DISPLAY_PRECISION = 2;
 
 enum Command : UBYTE {
   CMD_NONE = 0,
@@ -23,7 +22,8 @@ enum Command : UBYTE {
   CMD_GETTEMP,
   CMD_HOTEND_ON,
   CMD_HOTEND_OFF,
-  CMD_SETTEMP
+  CMD_SETTEMP,
+  CMD_SETPOS
 };
 
 enum CommandStates : UBYTE {
@@ -62,5 +62,6 @@ void cmdResume();
 void cmdRecover();
 void cmdPosition();
 void cmdSetTemperature();
+void cmdSetPos();
 
 #endif

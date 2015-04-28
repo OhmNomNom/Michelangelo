@@ -3,44 +3,35 @@
 
 #include "Base.h"
 #include "Interpreter.h"
-#include "TimerOne.h"
 
-static const UBYTE X_FLAG      = 0x01,
-                   Y_FLAG      = 0x02,
-                   Z_FLAG      = 0x04,
-                   E_FLAG      = 0x08,
-                   FLAG_ENABLE = 0x10,
+static const UBYTE X_MOVPORT   = 5,
+                   Y_MOVPORT   = 7,
+                   Z_MOVPORT   = 16,
+                   E_MOVPORT   = 9,
                   
-                   X_MOVPORT   = 4,
-                   Y_MOVPORT   = 5,
-                   Z_MOVPORT   = 5,
-                   E_MOVPORT   = 5,
+                   X_DIRPORT   = 4,
+                   Y_DIRPORT   = 6,
+                   Z_DIRPORT   = 14,
+                   E_DIRPORT   = 8;
                   
-                   X_DIRPORT   = 7,
-                   Y_DIRPORT   = 5,
-                   Z_DIRPORT   = 5,
-                   E_DIRPORT   = 5;
-                  
-static const UINT  X_STEPSMILLI  = 800,
-                   Y_STEPSMILLI = 800,
-                   Z_STEPSMILLI = 800,
-                   E_STEPSMILLI = 800;
+static const UINT  X_STEPSMILLI = 315,
+                   Y_STEPSMILLI = 315,
+                   Z_STEPSMILLI = 630,
+                   E_STEPSMILLI = 194;
                   
 static const bool  X_INVERT    = false,
                    Y_INVERT    = false,
                    Z_INVERT    = false,
                    E_INVERT    = false;
                   
-static const float X_MAXSPEED  = 4.2,
-                   Y_MAXSPEED  = 4.2,
-                   Z_MAXSPEED  = 4.2,
-                   E_MAXSPEED  = 4.2,
-                   MAXSPEED_LINEAR = 4.2;
-
-static const ULONG WORKER_PERIOD = 10;
+static const float X_MAXSPEED  = 20.0,
+                   Y_MAXSPEED  = 20.0,
+                   Z_MAXSPEED  = 20.0,
+                   E_MAXSPEED  = 0.5,
+                   MAXSPEED_LINEAR = 20.0;
 
 
-static const UBYTE FLAG     [] = {X_FLAG    ,Y_FLAG    ,Z_FLAG    ,E_FLAG    },
+static const UBYTE FLAG     [] = {FLAG_X    ,FLAG_Y    ,FLAG_Z    ,E_FLAG    },
                    MOVPORT  [] = {X_MOVPORT ,Y_MOVPORT ,Z_MOVPORT ,E_MOVPORT },
                    DIRPORT  [] = {X_DIRPORT ,Y_DIRPORT ,Z_DIRPORT ,E_DIRPORT };
                    
@@ -63,18 +54,17 @@ enum AxisIndex : UBYTE {
 
 struct Axis {
   ULONG stepTime,
-        steps,
-        lastMicros;
+        steps;
+  SLONG lastMicros;
 };
 
 extern volatile Axis Axes[];
-extern volatile UBYTE axisFlags;
 extern volatile SLONG axisPosition[];
 extern volatile SBYTE axisDirection[];
 void initAxes();
 void resetAxes();
 bool moveAxis(AxisIndex,float,float);
-void stepperWorker();
+void stepperWorker(const SLONG);
 void startStepperWorker();
 void stopStepperWorker();
 

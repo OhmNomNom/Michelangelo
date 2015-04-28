@@ -1,7 +1,6 @@
 #include "Axes.h"
          
-volatile Axis Axes[4];          
-volatile UBYTE axisFlags = 0x00;
+volatile Axis Axes[4];
 volatile SLONG axisPosition[4];
 volatile SBYTE axisDirection[4];
 
@@ -23,7 +22,8 @@ void resetAxes() {
 }
 
 bool moveAxis(AxisIndex axis, float distance, float rate) {
-  if((FLAG[axis] & axisFlags) || (rate > MAXSPEED[axis])) return false;
+  
+  if((FLAG[axis] & stateFlags) || (rate > MAXSPEED[axis])) return false;
   if(distance == 0) return true;
 
   axisDirection[axis] = ((distance < 0) xor (INVERT[axis]))?0:1;
@@ -33,69 +33,65 @@ bool moveAxis(AxisIndex axis, float distance, float rate) {
   if(distance < 0) distance = -distance;
   
   Axes[axis].steps      = distance * STEPSMILLI[axis];
-  Axes[axis].stepTime   = 1000000UL / (rate * STEPSMILLI[axis]);
+  Axes[axis].stepTime   = round(1000000UL / (rate * STEPSMILLI[axis]));
   Axes[axis].lastMicros = 0;
-  
-  axisFlags |= FLAG[axis];
+   
+  stateFlags |= FLAG[axis];
   return true;
 }
 
-void stepperWorker() {
-  if(!(axisFlags & FLAG_ENABLE)) return;
-  if(!(axisFlags & ~FLAG_ENABLE)) {
+void stepperWorker(const SLONG now) {
+  if(!(stateFlags & ~FLAG_ENABLE)) {
     stopStepperWorker();
     return;
   }
-  const ULONG mic = micros(); 
  
-  if(FLAG[X] & axisFlags && mic - Axes[X].lastMicros >= Axes[X].stepTime) {
+  if(FLAG[X] & stateFlags && now - Axes[X].lastMicros >= Axes[X].stepTime) {
     if(Axes[X].steps) {
       digitalWrite(MOVPORT[X], LOW);
       digitalWrite(MOVPORT[X], HIGH);
       Axes[X].steps--;
-      Axes[X].lastMicros = mic;
+      Axes[X].lastMicros = now;
       axisPosition[X] += axisDirection[X];
-    } else axisFlags &= ~FLAG[X];
+    } else stateFlags &= ~FLAG[X];
   }
   
-  if(FLAG[Y] & axisFlags && mic - Axes[Y].lastMicros >= Axes[Y].stepTime) {
+  if(FLAG[Y] & stateFlags && now - Axes[Y].lastMicros >= Axes[Y].stepTime) {
     if(Axes[Y].steps) {
       digitalWrite(MOVPORT[Y], LOW);
       digitalWrite(MOVPORT[Y], HIGH);
       Axes[Y].steps--;
-      Axes[Y].lastMicros = mic;
+      Axes[Y].lastMicros = now;
       axisPosition[Y] += axisDirection[Y];
-    } else axisFlags &= ~FLAG[Y];
+    } else stateFlags &= ~FLAG[Y];
   }
   
-  if(FLAG[Z] & axisFlags && mic - Axes[Z].lastMicros >= Axes[Z].stepTime) {
+  if(FLAG[Z] & stateFlags && now - Axes[Z].lastMicros >= Axes[Z].stepTime) {
     if(Axes[Z].steps) {
       digitalWrite(MOVPORT[Z], LOW);
       digitalWrite(MOVPORT[Z], HIGH);
       Axes[Z].steps--;
-      Axes[Z].lastMicros = mic;
+      Axes[Z].lastMicros = now;
       axisPosition[Z] += axisDirection[Z];
-    } else axisFlags &= ~FLAG[Z];
+    } else stateFlags &= ~FLAG[Z];
   }
   
-  if(FLAG[E] & axisFlags && mic - Axes[E].lastMicros >= Axes[E].stepTime) {
+  if(FLAG[E] & stateFlags && now - Axes[E].lastMicros >= Axes[E].stepTime) {
     if(Axes[E].steps) {
       digitalWrite(MOVPORT[E], LOW);
       digitalWrite(MOVPORT[E], HIGH);
       Axes[E].steps--;
-      Axes[E].lastMicros = mic;
+      Axes[E].lastMicros = now;
       axisPosition[E] += axisDirection[E];
-    } else axisFlags &= ~FLAG[E];
+    } else stateFlags &= ~FLAG[E];
   }
 }
 
 void startStepperWorker() {
-  Timer1.attachInterrupt(stepperWorker, WORKER_PERIOD);
-  axisFlags |= FLAG_ENABLE;
+  stateFlags |= FLAG_ENABLE;
 }
 
 void stopStepperWorker() {
-  axisFlags &= ~FLAG_ENABLE;
-  Timer1.detachInterrupt();
+  stateFlags &= ~FLAG_ENABLE;
   doneMoving();
 }

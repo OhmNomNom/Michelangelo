@@ -9,7 +9,7 @@ CommandStates cmdState;
 char cmdBuffer[CMDBUFFER_SIZE+1],
      checksum;
 float cmdParams[6],
-      feedRate,
+      feedRate = MAXSPEED_LINEAR / 2,
       extrudeRate;
 
 void initInterpreter() {
@@ -62,7 +62,7 @@ reparse:
       break;
     }
     cmdLine = sParseUINT(cmdBuffer+1);
-    if(cmdLine != lineCounter) {
+    if(cmdLine < lineCounter) {
       cmdLine = lineCounter;
       cmdState = STATE_INVALID;
       break;
@@ -70,7 +70,7 @@ reparse:
     cmdState = STATE_COMMAND;
     break;
   case STATE_COMMAND:
-    if((axisFlags) && cmdBuffer[0] != 'M') {
+    if((stateFlags) && cmdBuffer[0] != 'M') {
       cmdState = STATE_INVALID;
       break;
     } else if (strEqual(cmdBuffer,"M70"))
@@ -101,6 +101,8 @@ reparse:
       command = CMD_HOTEND_OFF;
     else if (strEqual(cmdBuffer,"M104"))
       command = CMD_SETTEMP;
+    else if (strEqual(cmdBuffer,"G92"))
+      command = CMD_SETPOS;
     else {
       cmdState = STATE_INVALID;
       break;
@@ -160,16 +162,18 @@ void execCommand() {
   noInterrupts();
   switch(command) {
   case CMD_NONE:
-    Serial.print("NONE N");
-    Serial.print((UINT)cmdLine);
-    Serial.print('\n');
+    addToBufferS("NONE N",6);
+    addToBufferI(cmdLine);
+    addToBufferC('\n');
     break;
   case CMD_FLAGS:
-    Serial.print("N");
-    Serial.print((UINT)cmdLine);
-    Serial.print(" M70 ");
-    Serial.print(axisFlags);
-    Serial.print('\n');
+    addToBufferC('N');
+    addToBufferI(cmdLine);
+    addToBufferS(" M70 ",5);
+    addToBufferI(stateFlags);
+    addToBufferC(' ');
+    addToBufferI(stateFlags);
+    addToBufferC('\n');
     break;
   case CMD_RPOS:
     rapidPositioning();
@@ -203,14 +207,17 @@ void execCommand() {
   case CMD_SETTEMP:
     cmdSetTemperature();
     break;
+  case CMD_SETPOS:
+    cmdSetPos();
+    break;
   case CMD_GETTEMP:
-    Serial.print("M105 T");
-    Serial.print(getExtruderTemperature(),2);
-    Serial.print(" SM");    
-    Serial.print(targetTemperature,2);
-    Serial.print(" F");    
-    Serial.print(temperatureRange,2);
-    Serial.print("\n");
+    addToBufferS("M105 T",6);
+    addToBufferF(getExtruderTemperature());
+    addToBufferS(" S",2);    
+    addToBufferF(targetTemperature);
+    addToBufferS(" F",2);    
+    addToBufferF(temperatureRange);
+    addToBufferC('\n');
     break;
   case CMD_HOTEND_ON:
     startTemperatureWorker();
@@ -222,7 +229,7 @@ void execCommand() {
     break;
   }
   interrupts();
-  lineCounter++;
+  lineCounter = cmdLine + 1;
 }
 
 inline void clearPrevCommand() { 
@@ -239,39 +246,46 @@ inline void clearPrevCommand() {
 }
 
 void doneMoving() {
-  Serial.print("DONE N");
-  Serial.print(movementLine);
-  Serial.print("\n");
+  addToBufferS("DONE N",6);
+  addToBufferI(movementLine);
+  addToBufferC('\n');
 }
 
 inline void invalidCommand() {
-  Serial.print("INVALID N");
-  Serial.print((UINT)cmdLine);
-  Serial.print("\n");
+  addToBufferS("INVALID N",9);
+  addToBufferI(cmdLine);
+  addToBufferC('\n');
   lineCounter = cmdLine;
 }
 
 inline void acknowledgeCommand() {
-  Serial.print("ACK N");
-  Serial.print((UINT)cmdLine);
-  Serial.print("\n");
+  addToBufferS("ACK N",5);
+  addToBufferI(cmdLine);
+  addToBufferC('\n');
+  flushSerial();
 }
 
 void rapidPositioning() {
   float motion[3];
   if(stateFlags & FLAG_ABSOLUTE_MODE) {
-    motion[X] = cmdParams[X] - axisPosition[X]*STEPLENGTH[X];
-    motion[Y] = cmdParams[Y] - axisPosition[Y]*STEPLENGTH[Y];
-    motion[Z] = cmdParams[Z] - axisPosition[Z]*STEPLENGTH[Z];
+    motion[X] = isnan(cmdParams[X])?0:(cmdParams[X] - axisPosition[X]*STEPLENGTH[X]);
+    motion[Y] = isnan(cmdParams[Y])?0:(cmdParams[Y] - axisPosition[Y]*STEPLENGTH[Y]);
+    motion[Z] = isnan(cmdParams[Z])?0:(cmdParams[Z] - axisPosition[Z]*STEPLENGTH[Z]);
   } else {
-    motion[X] = cmdParams[X];
-    motion[Y] = cmdParams[Y];
-    motion[Z] = cmdParams[Z];
+    motion[X] = isnan(cmdParams[X])?0:cmdParams[X];
+    motion[Y] = isnan(cmdParams[Y])?0:cmdParams[Y];
+    motion[Z] = isnan(cmdParams[Z])?0:cmdParams[Z];
   }
+  float feedRate = NAN;
+  if(cmdParams[F] > 0) feedRate = cmdParams[F];
+  
   acknowledgeCommand();
-  moveAxis(X,motion[X],MAXSPEED[X]);
-  moveAxis(Y,motion[Y],MAXSPEED[Y]);
-  moveAxis(Z,motion[Z],MAXSPEED[Z]);
+  if(!isnan(cmdParams[X])) moveAxis(X,motion[X],isnan(feedRate)?MAXSPEED[X]:feedRate);
+  if(!isnan(cmdParams[Y])) moveAxis(Y,motion[Y],isnan(feedRate)?MAXSPEED[Y]:feedRate);
+  if(!isnan(cmdParams[Z])) moveAxis(Z,motion[Z],isnan(feedRate)?MAXSPEED[Z]:feedRate);
+  if(!isnan(cmdParams[E])) moveAxis(E,cmdParams[E],isnan(feedRate)?MAXSPEED[E]:feedRate);
+
+  
   movementLine = cmdLine;
   startStepperWorker();
 }
@@ -283,13 +297,13 @@ void linearInterpolation() {
   
   float motion[3];
   if(stateFlags & FLAG_ABSOLUTE_MODE) {
-    motion[X] = cmdParams[X] - axisPosition[X]*STEPLENGTH[X];
-    motion[Y] = cmdParams[Y] - axisPosition[Y]*STEPLENGTH[Y];
-    motion[Z] = cmdParams[Z] - axisPosition[Z]*STEPLENGTH[Z];
+    motion[X] = isnan(cmdParams[X])?0:(cmdParams[X] - axisPosition[X]*STEPLENGTH[X]);
+    motion[Y] = isnan(cmdParams[Y])?0:(cmdParams[Y] - axisPosition[Y]*STEPLENGTH[Y]);
+    motion[Z] = isnan(cmdParams[Z])?0:(cmdParams[Z] - axisPosition[Z]*STEPLENGTH[Z]);
   } else {
-    motion[X] = cmdParams[X];
-    motion[Y] = cmdParams[Y];
-    motion[Z] = cmdParams[Z];
+    motion[X] = isnan(cmdParams[X])?0:cmdParams[X];
+    motion[Y] = isnan(cmdParams[Y])?0:cmdParams[Y];
+    motion[Z] = isnan(cmdParams[Z])?0:cmdParams[Z];
   }
   
   float travel = sqrt(pow2(motion[X]) + pow2(motion[Y]) + pow2(motion[Z]));
@@ -303,78 +317,85 @@ void linearInterpolation() {
   velocity[E] = abs(cmdParams[E] * (feedRate / travel));
   
   acknowledgeCommand();
-  moveAxis(X,motion[X],velocity[X]);
-  moveAxis(Y,motion[Y],velocity[Y]);
-  moveAxis(Z,motion[Z],velocity[Z]);
-  moveAxis(E,cmdParams[E],velocity[E]);
+  if(!isnan(cmdParams[X])) moveAxis(X,motion[X],velocity[X]);
+  if(!isnan(cmdParams[Y])) moveAxis(Y,motion[Y],velocity[Y]);
+  if(!isnan(cmdParams[Z])) moveAxis(Z,motion[Z],velocity[Z]);
+  if(!isnan(cmdParams[E])) moveAxis(E,cmdParams[E],velocity[E]);
   movementLine = cmdLine;
   startStepperWorker();
 }
 
 
 void cmdEcho() {
-  Serial.print("ECHO N");
-  Serial.print((UINT)cmdLine);
-  Serial.print(" X");
-  Serial.print(cmdParams[X],DISPLAY_PRECISION);
-  Serial.print(" Y");
-  Serial.print(cmdParams[Y],DISPLAY_PRECISION);
-  Serial.print(" Z");
-  Serial.print(cmdParams[Z],DISPLAY_PRECISION);
-  Serial.print(" E");
-  Serial.print(cmdParams[F],DISPLAY_PRECISION);
-  Serial.print(" F");
-  Serial.print(cmdParams[E],DISPLAY_PRECISION);
-  Serial.print(" D");
-  Serial.print(cmdParams[S],DISPLAY_PRECISION);
-  Serial.print("\n");
+  addToBufferS("ECHO N",6);
+  addToBufferI(cmdLine);
+  addToBufferS(" X",2);
+  addToBufferF(cmdParams[X]);
+  addToBufferS(" Y",2);
+  addToBufferF(cmdParams[Y]);
+  addToBufferS(" Z",2);
+  addToBufferF(cmdParams[Z]);
+  addToBufferS(" E",2);
+  addToBufferF(cmdParams[F]);
+  addToBufferS(" F",2);
+  addToBufferF(cmdParams[E]);
+  addToBufferS(" S",2);
+  addToBufferF(cmdParams[S]);
+  addToBufferC('\n');
 }
 
 inline void cmdHalt() {
-  axisFlags &= ~FLAG_ENABLE;
-  Serial.print("HALT N");
-  Serial.print((UINT)cmdLine);
-  Serial.print('\n');
+  stateFlags &= ~FLAG_ENABLE;
+  addToBufferS("HALT N",6);
+  addToBufferI(cmdLine);
+  addToBufferC('\n');
 }
 void cmdResume() {
-  if((axisFlags & FLAG_ENABLE) || !(axisFlags & ~FLAG_ENABLE)) {
+  if((stateFlags & FLAG_ENABLE) || !(stateFlags & ~FLAG_ENABLE)) {
     invalidCommand();
     return;
   }
-  Serial.print("RESUME N");
-  Serial.print((UINT)cmdLine);
-  Serial.print('\n');
-  axisFlags |= FLAG_ENABLE;
+  addToBufferS("RESUME N",8);
+  addToBufferI(cmdLine);
+  addToBufferC('\n');
+  stateFlags |= FLAG_ENABLE;
 }
 void cmdRecover() {
   resetAxes(); 
-  if((axisFlags & FLAG_ENABLE) || !(axisFlags & ~FLAG_ENABLE)) {
+  if((stateFlags & FLAG_ENABLE) || !(stateFlags & ~FLAG_ENABLE)) {
     invalidCommand();
     return;
   }
-  Serial.print("RECOVER N");
-  Serial.print((UINT)cmdLine);
-  Serial.print('\n');
-  axisFlags = FLAG_ENABLE;
+  addToBufferS("RECOVER N",9);
+  addToBufferI(cmdLine);
+  addToBufferC('\n');
+  stateFlags = FLAG_ENABLE;
 }
 
 void cmdPosition() {
-  Serial.print("POS N");
-  Serial.print((UINT)cmdLine);
-  Serial.print(" X");
-  Serial.print(axisPosition[X]*STEPLENGTH[X],DISPLAY_PRECISION);
-  Serial.print(" Y");
-  Serial.print(axisPosition[Y]*STEPLENGTH[Y],DISPLAY_PRECISION);
-  Serial.print(" Z");
-  Serial.print(axisPosition[Z]*STEPLENGTH[Z],DISPLAY_PRECISION);
-  Serial.print(" E");
-  Serial.print(axisPosition[E]*STEPLENGTH[E],DISPLAY_PRECISION);
-  Serial.print("\n");
+  addToBufferS("POS N",5);
+  addToBufferI(cmdLine);
+  addToBufferS(" X",2);
+  addToBufferF(axisPosition[X]*STEPLENGTH[X]);
+  addToBufferS(" Y",2);
+  addToBufferF(axisPosition[Y]*STEPLENGTH[Y]);
+  addToBufferS(" Z",2);
+  addToBufferF(axisPosition[Z]*STEPLENGTH[Z]);
+  addToBufferS(" E",2);
+  addToBufferF(axisPosition[E]*STEPLENGTH[E]);
+  addToBufferC('\n');
 }
 
 void cmdSetTemperature() {
   if(isnan(cmdParams[S]) && isnan(cmdParams[F])) return invalidCommand();
   if(!isnan(cmdParams[S])) targetTemperature = cmdParams[S];
   if(!isnan(cmdParams[F]) && cmdParams[F] > 0) temperatureRange = cmdParams[F];
+  acknowledgeCommand();
+}
+
+void cmdSetPos() {
+  if(!isnan(cmdParams[X])) axisPosition[X] = cmdParams[X] / STEPLENGTH[X];
+  if(!isnan(cmdParams[Y])) axisPosition[Y] = cmdParams[Y] / STEPLENGTH[Y];
+  if(!isnan(cmdParams[Z])) axisPosition[Z] = cmdParams[Z] / STEPLENGTH[Z];
   acknowledgeCommand();
 }

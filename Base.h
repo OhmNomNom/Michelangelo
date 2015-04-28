@@ -13,14 +13,29 @@ typedef int8_t   SBYTE;
 typedef uint16_t UINT;
 
 #define strEqual(m,n) strcmp(m,n) == 0
-#define pow2(n) n*n
+#define pow2(n) (n*n)
 
-static const UBYTE FLAG_ABSOLUTE_MODE = 0x01,
-                   FLAG_HOTEND_ON     = 0x02;
+static const UBYTE FLAG_ENABLE        = 0x01,
+                   FLAG_X             = 0x02,
+                   FLAG_Y             = 0x04,
+                   FLAG_Z             = 0x08,
+                   E_FLAG             = 0x10,
+                   FLAG_HOTEND_ON     = 0x20,
+                   FLAG_ABSOLUTE_MODE = 0x40;
+                   
+const ULONG PID_PERIOD      = 100000,
+            WORKER_PERIOD   = 10;
 
 extern UBYTE stateFlags;
+extern char serialBuffer[];
+extern UBYTE bufferPos;
 
 UINT sParseUINT(const char*);
 float sParseFloat(const char*);
+void addToBufferS(const char*,UBYTE);
+void addToBufferF(const float&);
+void addToBufferC(const char&);
+void addToBufferI(const int&);
+void flushSerial(void);
 
 #endif
