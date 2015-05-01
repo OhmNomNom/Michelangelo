@@ -41,7 +41,7 @@ bool moveAxis(AxisIndex axis, float distance, float rate) {
 }
 
 void stepperWorker(const SLONG now) {
-  if(!(stateFlags & ~FLAG_ENABLE)) {
+  if(!((stateFlags & ~FLAG_ENABLE) & FLAGS_AXES)) {
     stopStepperWorker();
     return;
   }

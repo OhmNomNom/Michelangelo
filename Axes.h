@@ -31,7 +31,7 @@ static const float X_MAXSPEED  = 20.0,
                    MAXSPEED_LINEAR = 20.0;
 
 
-static const UBYTE FLAG     [] = {FLAG_X    ,FLAG_Y    ,FLAG_Z    ,E_FLAG    },
+static const UBYTE FLAG     [] = {FLAG_X    ,FLAG_Y    ,FLAG_Z    ,FLAG_E    },
                    MOVPORT  [] = {X_MOVPORT ,Y_MOVPORT ,Z_MOVPORT ,E_MOVPORT },
                    DIRPORT  [] = {X_DIRPORT ,Y_DIRPORT ,Z_DIRPORT ,E_DIRPORT };
                    

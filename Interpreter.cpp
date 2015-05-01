@@ -70,7 +70,7 @@ reparse:
     cmdState = STATE_COMMAND;
     break;
   case STATE_COMMAND:
-    if((stateFlags) && cmdBuffer[0] != 'M') {
+    if((stateFlags & FLAGS_AXES) && cmdBuffer[0] != 'M') {
       cmdState = STATE_INVALID;
       break;
     } else if (strEqual(cmdBuffer,"M70"))
@@ -171,8 +171,6 @@ void execCommand() {
     addToBufferI(cmdLine);
     addToBufferS(" M70 ",5);
     addToBufferI(stateFlags);
-    addToBufferC(' ');
-    addToBufferI(stateFlags);
     addToBufferC('\n');
     break;
   case CMD_RPOS:
@@ -259,10 +257,10 @@ inline void invalidCommand() {
 }
 
 inline void acknowledgeCommand() {
-  addToBufferS("ACK N",5);
+  /*addToBufferS("ACK N",5);
   addToBufferI(cmdLine);
   addToBufferC('\n');
-  flushSerial();
+  flushSerial();*/
 }
 
 void rapidPositioning() {
@@ -351,7 +349,7 @@ inline void cmdHalt() {
   addToBufferC('\n');
 }
 void cmdResume() {
-  if((stateFlags & FLAG_ENABLE) || !(stateFlags & ~FLAG_ENABLE)) {
+  if((stateFlags & FLAG_ENABLE) || !((stateFlags & FLAGS_AXES) & ~FLAG_ENABLE)) {
     invalidCommand();
     return;
   }
@@ -362,7 +360,7 @@ void cmdResume() {
 }
 void cmdRecover() {
   resetAxes(); 
-  if((stateFlags & FLAG_ENABLE) || !(stateFlags & ~FLAG_ENABLE)) {
+  if((stateFlags & FLAG_ENABLE) || !((stateFlags & FLAGS_AXES) & ~FLAG_ENABLE)) {
     invalidCommand();
     return;
   }

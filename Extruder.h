@@ -6,7 +6,7 @@
 
 const float EXT_BETA  = 3950,  
             EXT_T0    = 298.15,
-            EXT_MAX_TEMP = 290.0f,
+            EXT_MAX_TEMP = 250.0f,
             EXT_R0    = 100000,
             
             ZERO_C    = 273.15,

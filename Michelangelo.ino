@@ -12,7 +12,7 @@ void setup() {
 }
 
 void loop() {
-    while (Serial.available() > 0) interpret(Serial.read());
+    while (Serial.available()) interpret(Serial.read());
     flushSerial();
 }
 
