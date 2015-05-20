@@ -27,16 +27,26 @@ static const UBYTE FLAG_ENABLE        = 0x01,
 const ULONG PID_PERIOD      = 100000,
             WORKER_PERIOD   = 10;
 
+enum ParamIndex : UBYTE {
+  X = 0,
+  Y,
+  Z,
+  E,
+  F,//Feed rate
+  S,
+  R
+};
+
 extern UBYTE stateFlags;
 extern char serialBuffer[];
 extern UBYTE bufferPos;
 
-UINT sParseUINT(const char*);
+UINT  sParseUINT(const char*);
 float sParseFloat(const char*);
-void addToBufferS(const char*,UBYTE);
-void addToBufferF(const float&);
-void addToBufferC(const char&);
-void addToBufferI(const int&);
-void flushSerial(void);
+void  addToBufferS(const char*,UBYTE);
+void  addToBufferF(const float&);
+void  addToBufferC(const char&);
+void  addToBufferI(const int&);
+void  flushSerial(void);
 
 #endif

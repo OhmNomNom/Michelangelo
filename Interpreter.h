@@ -5,7 +5,7 @@
 #include "Axes.h"
 #include "Extruder.h"
 
-static const UBYTE CMDBUFFER_SIZE = 15;
+static const UBYTE CMDBUFFER_SIZE = 16;
 
 enum Command : UBYTE {
   CMD_NONE = 0,

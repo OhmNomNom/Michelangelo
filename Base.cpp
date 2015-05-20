@@ -1,6 +1,6 @@
 #include "Base.h"
 
-UBYTE stateFlags = 0x01;
+UBYTE stateFlags = 0x00;
 char serialBuffer[64];
 UBYTE bufferPos = 0;
 

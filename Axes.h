@@ -42,16 +42,6 @@ static const float MAXSPEED [] = {X_MAXSPEED,Y_MAXSPEED,Z_MAXSPEED,E_MAXSPEED},
                   
 static const bool  INVERT   [] = {X_INVERT  ,Y_INVERT  ,Z_INVERT  ,E_INVERT  };
 
-
-enum AxisIndex : UBYTE {
-  X = 0,
-  Y,
-  Z,
-  E,
-  F,//Feed rate
-  S //Temperature
-};
-
 struct Axis {
   ULONG stepTime,
         steps;
@@ -63,7 +53,7 @@ extern volatile SLONG axisPosition[];
 extern volatile SBYTE axisDirection[];
 void initAxes();
 void resetAxes();
-bool moveAxis(AxisIndex,float,float);
+bool moveAxis(ParamIndex,float,float);
 void stepperWorker(const SLONG);
 void startStepperWorker();
 void stopStepperWorker();

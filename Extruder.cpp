@@ -1,7 +1,7 @@
 #include "Extruder.h"
 
-float targetTemperature = 200.0f,
-      temperatureRange  = 2.0f,
+float activeTemperature = 200.0f,
+      idleTemperature = 140.0f,
       currentTemperature = -273.15F;
 
 void initExtruder() {
@@ -24,6 +24,8 @@ float getExtruderTemperature() {
 
 void temperatureWorker(const ULONG now) {
   currentTemperature = getExtruderTemperature();
+  
+  const int &targetTemperature = (stateFlags | FLAG_ENABLE) ? activeTemperature : idleTemperature;
 
   //if (currentTemperature <= targetTemperature - temperatureRange) digitalWrite(HEATER_PORT, HIGH);
   //else if (currentTemperature > targetTemperature + temperatureRange) digitalWrite(HEATER_PORT, LOW);

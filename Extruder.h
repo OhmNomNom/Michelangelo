@@ -23,8 +23,8 @@ const int   R_BALANCE       = 10000, //Ohm
             MAX_OUTPUT      = 255 - BIAS;
             
             
-extern float targetTemperature,
-             temperatureRange,
+extern float activeTemperature,
+             idleTemperature,
              currentTemperature;
             
 void initExtruder();

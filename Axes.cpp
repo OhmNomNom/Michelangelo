@@ -21,7 +21,7 @@ void resetAxes() {
   Axes[E].steps = 0;
 }
 
-bool moveAxis(AxisIndex axis, float distance, float rate) {
+bool moveAxis(ParamIndex axis, float distance, float rate) {
   
   if((FLAG[axis] & stateFlags) || (rate > MAXSPEED[axis])) return false;
   if(distance == 0) return true;

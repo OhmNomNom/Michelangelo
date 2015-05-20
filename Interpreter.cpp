@@ -8,7 +8,7 @@ UBYTE bufferPosition;
 CommandStates cmdState;
 char cmdBuffer[CMDBUFFER_SIZE+1],
      checksum;
-float cmdParams[6],
+float cmdParams[7],
       feedRate = MAXSPEED_LINEAR / 2,
       extrudeRate;
 
@@ -20,31 +20,29 @@ void initInterpreter() {
 }
 
 void interpret(char c) {
-  if(cmdState != STATE_CHECKSUM) checksum ^= c;
-  switch(c) {
-  case ';':
-  case '\n':
-    checksum ^= c; //Undo the xor done above
+  if(c == '\n') {
     execCommand();
     clearPrevCommand();
     return;
+  }
+  if(cmdState == STATE_INVALID) return;
+  
+  if(cmdState != STATE_CHECKSUM) checksum ^= c;
+  
+  switch(c) {
   case '*':
-    checksum ^= '*';
-    if(cmdState == STATE_INVALID) return;
+    checksum ^= '*'; //undo the xor done above
     cmdState = STATE_CHECKSUM;
     bufferPosition = 0;
     break;
   case ' ': 
-    if(cmdState == STATE_INVALID) return;
     process();
     break;
   default:
-    if(cmdState == STATE_INVALID) return;
     cmdBuffer[bufferPosition++] = c;
+    if(bufferPosition >= CMDBUFFER_SIZE)
+      cmdState = STATE_INVALID;
   }
-  
-  if(bufferPosition >= CMDBUFFER_SIZE)
-    cmdState = STATE_INVALID;
 }
 
 void process() {
@@ -108,7 +106,7 @@ reparse:
       break;
     }
     cmdState = STATE_PARAMS; 
-    cmdParams[X] = cmdParams[Y] = cmdParams[Z] = cmdParams[E] = cmdParams[F] = cmdParams[S] = NAN;
+    cmdParams[X] = cmdParams[Y] = cmdParams[Z] = cmdParams[E] = cmdParams[F] = cmdParams[S] = cmdParams[S] = NAN;
     break;
   case STATE_PARAMS:
     if(bufferPosition < 2) {
@@ -139,6 +137,9 @@ reparse:
         break;
       case 'S':
         cmdParams[S] = input;
+        break;
+      case 'R':
+        cmdParams[R] = input;
         break;
       default:
         cmdState = STATE_INVALID;
@@ -212,9 +213,9 @@ void execCommand() {
     addToBufferS("M105 T",6);
     addToBufferF(getExtruderTemperature());
     addToBufferS(" S",2);    
-    addToBufferF(targetTemperature);
-    addToBufferS(" F",2);    
-    addToBufferF(temperatureRange);
+    addToBufferF(activeTemperature);
+    addToBufferS(" R",2);    
+    addToBufferF(idleTemperature);
     addToBufferC('\n');
     break;
   case CMD_HOTEND_ON:
@@ -241,6 +242,7 @@ inline void clearPrevCommand() {
     cmdParams[E] = 0;
     cmdParams[F] = 0;
     cmdParams[S] = 0;
+    cmdParams[R] = 0;
 }
 
 void doneMoving() {
@@ -339,6 +341,8 @@ void cmdEcho() {
   addToBufferF(cmdParams[E]);
   addToBufferS(" S",2);
   addToBufferF(cmdParams[S]);
+  addToBufferS(" R",2);
+  addToBufferF(cmdParams[R]);
   addToBufferC('\n');
 }
 
@@ -385,9 +389,8 @@ void cmdPosition() {
 }
 
 void cmdSetTemperature() {
-  if(isnan(cmdParams[S]) && isnan(cmdParams[F])) return invalidCommand();
-  if(!isnan(cmdParams[S])) targetTemperature = cmdParams[S];
-  if(!isnan(cmdParams[F]) && cmdParams[F] > 0) temperatureRange = cmdParams[F];
+  if(!isnan(cmdParams[S])) activeTemperature = cmdParams[S];
+  if(!isnan(cmdParams[R])) idleTemperature = cmdParams[S];
   acknowledgeCommand();
 }
 
