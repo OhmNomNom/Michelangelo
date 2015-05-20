@@ -42,7 +42,7 @@ bool moveAxis(ParamIndex axis, float distance, float rate) {
 
 void stepperWorker(const SLONG now) {
   if(!((stateFlags & ~FLAG_ENABLE) & FLAGS_AXES)) {
-    stopStepperWorker();
+    stopStepperControl();
     return;
   }
  
@@ -87,11 +87,11 @@ void stepperWorker(const SLONG now) {
   }
 }
 
-void startStepperWorker() {
+void startStepperControl() {
   stateFlags |= FLAG_ENABLE;
 }
 
-void stopStepperWorker() {
+void stopStepperControl() {
   stateFlags &= ~FLAG_ENABLE;
   doneMoving();
 }

@@ -55,7 +55,7 @@ void initAxes();
 void resetAxes();
 bool moveAxis(ParamIndex,float,float);
 void stepperWorker(const SLONG);
-void startStepperWorker();
-void stopStepperWorker();
+void startStepperControl();
+void stopStepperControl();
 
 #endif

@@ -24,6 +24,7 @@ void timerInterrupt() {
 
   if(getExtruderTemperature() > EXT_MAX_TEMP)
     analogWrite(HEATER_PORT,0);
+  
   else if((stateFlags & FLAG_HOTEND_ON) && (lastPIDMicros + PID_PERIOD <= now)) {
     lastPIDMicros = now;
     temperatureWorker(now); 

@@ -30,7 +30,7 @@ extern float activeTemperature,
 void initExtruder();
 float getExtruderTemperature();
 void temperatureWorker(const ULONG);
-void startTemperatureWorker();
-void stopTemperatureWorker();
+void startTemperatureControl();
+void stopTemperatureControl();
 
 #endif

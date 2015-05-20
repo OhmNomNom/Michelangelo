@@ -25,8 +25,8 @@ void interpret(char c) {
     clearPrevCommand();
     return;
   }
-  if(cmdState == STATE_INVALID) return;
   
+  if(cmdState == STATE_INVALID) return;
   if(cmdState != STATE_CHECKSUM) checksum ^= c;
   
   switch(c) {
@@ -219,11 +219,11 @@ void execCommand() {
     addToBufferC('\n');
     break;
   case CMD_HOTEND_ON:
-    startTemperatureWorker();
+    startTemperatureControl();
     acknowledgeCommand();
     break;
   case CMD_HOTEND_OFF:
-    stopTemperatureWorker();
+    stopTemperatureControl();
     acknowledgeCommand();
     break;
   }
@@ -287,7 +287,7 @@ void rapidPositioning() {
 
   
   movementLine = cmdLine;
-  startStepperWorker();
+  startStepperControl();
 }
 void linearInterpolation() {
   if(cmdParams[F] > MAXSPEED_LINEAR || cmdParams[S] > MAXSPEED[E]) {
@@ -322,7 +322,7 @@ void linearInterpolation() {
   if(!isnan(cmdParams[Z])) moveAxis(Z,motion[Z],velocity[Z]);
   if(!isnan(cmdParams[E])) moveAxis(E,cmdParams[E],velocity[E]);
   movementLine = cmdLine;
-  startStepperWorker();
+  startStepperControl();
 }
 
 

@@ -63,11 +63,11 @@ void temperatureWorker(const ULONG now) {
   analogWrite(HEATER_PORT,BIAS + output);
 }
 
-void startTemperatureWorker() {
+void startTemperatureControl() {
   stateFlags |= FLAG_HOTEND_ON;
 }
 
-void stopTemperatureWorker() {
+void stopTemperatureControl() {
   stateFlags &= ~FLAG_HOTEND_ON;
   analogWrite(HEATER_PORT,0);
 }
