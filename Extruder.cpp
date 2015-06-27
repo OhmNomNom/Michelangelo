@@ -2,10 +2,11 @@
 
 float activeTemperature = 200.0f,
       idleTemperature = 140.0f,
-      currentTemperature = -273.15F;
+      temperatureTolerance = 5.0f;
 
 void initExtruder() {
   pinMode(HEATER_PORT,OUTPUT);
+  pinMode(THERMISTOR_PORT,INPUT);
   analogWrite(HEATER_PORT,0);
 }
 
@@ -22,11 +23,12 @@ float getExtruderTemperature() {
   return T;
 }
 
-void temperatureWorker(const ULONG now) {
-  currentTemperature = getExtruderTemperature();
+void temperatureWorker(const ULONG now) { 
+  const int &targetTemperature = (stateFlags & FLAG_ACTIVE_TEMP) ? activeTemperature : idleTemperature;
   
-  const int &targetTemperature = (stateFlags | FLAG_ENABLE) ? activeTemperature : idleTemperature;
-
+  if(getExtruderTemperature() >= EXTRUDER_MAX_TEMP) {
+    analogWrite(HEATER_PORT,0);
+  }
   //if (currentTemperature <= targetTemperature - temperatureRange) digitalWrite(HEATER_PORT, HIGH);
   //else if (currentTemperature > targetTemperature + temperatureRange) digitalWrite(HEATER_PORT, LOW);
   
@@ -34,7 +36,10 @@ void temperatureWorker(const ULONG now) {
   static float iTerm = 0,
                prevError = 0;
   
-  if(!(stateFlags & FLAG_HOTEND_ON)) return;
+  
+  const float currentTemperature = getExtruderTemperature();
+  
+  if(!isFlagSet(FLAG_HOTEND_ON)) return;
   
   const ULONG deltaT = now - prevTime;
   if(deltaT < 0) return;
@@ -43,7 +48,7 @@ void temperatureWorker(const ULONG now) {
   const float error = targetTemperature - currentTemperature;  
 
   const float pTerm = KP * error;
-  iTerm *= 0.7;
+  iTerm *= KI2;
   iTerm += KI * error;
   const float dTerm = KD * (error - prevError); //dInput/dt, to avoid "set point change kick"
   
@@ -63,11 +68,13 @@ void temperatureWorker(const ULONG now) {
   analogWrite(HEATER_PORT,BIAS + output);
 }
 
-void startTemperatureControl() {
-  stateFlags |= FLAG_HOTEND_ON;
+void startTemperatureControl(bool isActive) {
+  setFlag(FLAG_HOTEND_ON);
+  if(isActive) setFlag(FLAG_ACTIVE_TEMP);
+  else unsetFlag(FLAG_ACTIVE_TEMP);
 }
 
 void stopTemperatureControl() {
-  stateFlags &= ~FLAG_HOTEND_ON;
+  unsetFlag(FLAG_HOTEND_ON);
   analogWrite(HEATER_PORT,0);
 }

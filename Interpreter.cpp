@@ -68,7 +68,7 @@ reparse:
     cmdState = STATE_COMMAND;
     break;
   case STATE_COMMAND:
-    if((stateFlags & FLAGS_AXES) && cmdBuffer[0] != 'M') {
+    if(isFlagSet(FLAG_ENABLE | FLAGS_AXES) && cmdBuffer[0] == 'G') {
       cmdState = STATE_INVALID;
       break;
     } else if (strEqual(cmdBuffer,"M70"))
@@ -94,19 +94,23 @@ reparse:
     else if (strEqual(cmdBuffer,"M105"))
       command = CMD_GETTEMP;
     else if (strEqual(cmdBuffer,"M03"))
-      command = CMD_HOTEND_ON;
+      command = CMD_HOTEND_PASSIVE;
+    else if (strEqual(cmdBuffer,"M04"))
+      command = CMD_HOTEND_ACTIVE;
     else if (strEqual(cmdBuffer,"M05"))
       command = CMD_HOTEND_OFF;
     else if (strEqual(cmdBuffer,"M104"))
       command = CMD_SETTEMP;
     else if (strEqual(cmdBuffer,"G92"))
       command = CMD_SETPOS;
+    else if (strEqual(cmdBuffer,"M71"))
+      command = CMD_GET_TIME;
     else {
       cmdState = STATE_INVALID;
       break;
     }
     cmdState = STATE_PARAMS; 
-    cmdParams[X] = cmdParams[Y] = cmdParams[Z] = cmdParams[E] = cmdParams[F] = cmdParams[S] = cmdParams[S] = NAN;
+    cmdParams[X] = cmdParams[Y] = cmdParams[Z] = cmdParams[E] = cmdParams[F] = cmdParams[S] = cmdParams[R] = NAN;
     break;
   case STATE_PARAMS:
     if(bufferPosition < 2) {
@@ -196,11 +200,11 @@ void execCommand() {
     cmdPosition();
     break;
   case CMD_MODEABS:
-    stateFlags |= FLAG_ABSOLUTE_MODE;
+    setFlag(FLAG_ABSOLUTE_MODE);
     acknowledgeCommand();
     break;
   case CMD_MODEINC:
-    stateFlags &= ~FLAG_ABSOLUTE_MODE;
+    unsetFlag(FLAG_ABSOLUTE_MODE);
     acknowledgeCommand();
     break;
   case CMD_SETTEMP:
@@ -209,6 +213,13 @@ void execCommand() {
   case CMD_SETPOS:
     cmdSetPos();
     break;
+  case CMD_GET_TIME:
+    addToBufferS("M71 T",5);
+    addToBufferI(micros());
+    addToBufferS(" S",2);    
+    addToBufferI(timeInterval);
+    addToBufferC('\n');
+    break;
   case CMD_GETTEMP:
     addToBufferS("M105 T",6);
     addToBufferF(getExtruderTemperature());
@@ -216,10 +227,16 @@ void execCommand() {
     addToBufferF(activeTemperature);
     addToBufferS(" R",2);    
     addToBufferF(idleTemperature);
+    addToBufferS(" F",2);    
+    addToBufferI(isFlagSet(FLAG_HOTEND_ON)? (isFlagSet(FLAG_ACTIVE_TEMP)? 2 : 1) : 0);
     addToBufferC('\n');
     break;
-  case CMD_HOTEND_ON:
-    startTemperatureControl();
+  case CMD_HOTEND_PASSIVE:
+    startTemperatureControl(false);
+    acknowledgeCommand();
+    break;
+  case CMD_HOTEND_ACTIVE:
+    startTemperatureControl(true);
     acknowledgeCommand();
     break;
   case CMD_HOTEND_OFF:
@@ -259,15 +276,15 @@ inline void invalidCommand() {
 }
 
 inline void acknowledgeCommand() {
-  /*addToBufferS("ACK N",5);
+  addToBufferS("ACK N",5);
   addToBufferI(cmdLine);
   addToBufferC('\n');
-  flushSerial();*/
+  flushSerial();
 }
 
 void rapidPositioning() {
   float motion[3];
-  if(stateFlags & FLAG_ABSOLUTE_MODE) {
+  if(isFlagSet(FLAG_ABSOLUTE_MODE)) {
     motion[X] = isnan(cmdParams[X])?0:(cmdParams[X] - axisPosition[X]*STEPLENGTH[X]);
     motion[Y] = isnan(cmdParams[Y])?0:(cmdParams[Y] - axisPosition[Y]*STEPLENGTH[Y]);
     motion[Z] = isnan(cmdParams[Z])?0:(cmdParams[Z] - axisPosition[Z]*STEPLENGTH[Z]);
@@ -285,7 +302,6 @@ void rapidPositioning() {
   if(!isnan(cmdParams[Z])) moveAxis(Z,motion[Z],isnan(feedRate)?MAXSPEED[Z]:feedRate);
   if(!isnan(cmdParams[E])) moveAxis(E,cmdParams[E],isnan(feedRate)?MAXSPEED[E]:feedRate);
 
-  
   movementLine = cmdLine;
   startStepperControl();
 }
@@ -296,7 +312,7 @@ void linearInterpolation() {
   }
   
   float motion[3];
-  if(stateFlags & FLAG_ABSOLUTE_MODE) {
+  if(isFlagSet(FLAG_ABSOLUTE_MODE)) {
     motion[X] = isnan(cmdParams[X])?0:(cmdParams[X] - axisPosition[X]*STEPLENGTH[X]);
     motion[Y] = isnan(cmdParams[Y])?0:(cmdParams[Y] - axisPosition[Y]*STEPLENGTH[Y]);
     motion[Z] = isnan(cmdParams[Z])?0:(cmdParams[Z] - axisPosition[Z]*STEPLENGTH[Z]);
@@ -322,6 +338,7 @@ void linearInterpolation() {
   if(!isnan(cmdParams[Z])) moveAxis(Z,motion[Z],velocity[Z]);
   if(!isnan(cmdParams[E])) moveAxis(E,cmdParams[E],velocity[E]);
   movementLine = cmdLine;
+  
   startStepperControl();
 }
 
@@ -347,31 +364,31 @@ void cmdEcho() {
 }
 
 inline void cmdHalt() {
-  stateFlags &= ~FLAG_ENABLE;
+  unsetFlag(FLAG_ENABLE);
   addToBufferS("HALT N",6);
   addToBufferI(cmdLine);
   addToBufferC('\n');
 }
 void cmdResume() {
-  if((stateFlags & FLAG_ENABLE) || !((stateFlags & FLAGS_AXES) & ~FLAG_ENABLE)) {
+  if(isFlagSet(FLAG_ENABLE) || !isFlagSet(FLAGS_AXES)) {
     invalidCommand();
     return;
   }
   addToBufferS("RESUME N",8);
   addToBufferI(cmdLine);
   addToBufferC('\n');
-  stateFlags |= FLAG_ENABLE;
+  setFlag(FLAG_ENABLE);
 }
 void cmdRecover() {
   resetAxes(); 
-  if((stateFlags & FLAG_ENABLE) || !((stateFlags & FLAGS_AXES) & ~FLAG_ENABLE)) {
+  if(isFlagSet(FLAG_ENABLE) || !isFlagSet(FLAGS_AXES)) {
     invalidCommand();
     return;
   }
   addToBufferS("RECOVER N",9);
   addToBufferI(cmdLine);
   addToBufferC('\n');
-  stateFlags = FLAG_ENABLE;
+  unsetFlag(FLAGS_AXES);
 }
 
 void cmdPosition() {
@@ -390,7 +407,8 @@ void cmdPosition() {
 
 void cmdSetTemperature() {
   if(!isnan(cmdParams[S])) activeTemperature = cmdParams[S];
-  if(!isnan(cmdParams[R])) idleTemperature = cmdParams[S];
+  if(!isnan(cmdParams[R])) idleTemperature = cmdParams[R];
+  if(!isnan(cmdParams[F])) temperatureTolerance = cmdParams[F];
   acknowledgeCommand();
 }
 

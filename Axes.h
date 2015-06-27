@@ -4,15 +4,15 @@
 #include "Base.h"
 #include "Interpreter.h"
 
-static const UBYTE X_MOVPORT   = 5,
-                   Y_MOVPORT   = 7,
-                   Z_MOVPORT   = 16,
-                   E_MOVPORT   = 9,
+static const UBYTE X_MOVPORT   = 9,
+                   Y_MOVPORT   = 6,
+                   Z_MOVPORT   = 4,
+                   E_MOVPORT   = 16,
                   
-                   X_DIRPORT   = 4,
-                   Y_DIRPORT   = 6,
-                   Z_DIRPORT   = 14,
-                   E_DIRPORT   = 8;
+                   X_DIRPORT   = 8,
+                   Y_DIRPORT   = 7,
+                   Z_DIRPORT   = 5,
+                   E_DIRPORT   = 14;
                   
 static const UINT  X_STEPSMILLI = 315,
                    Y_STEPSMILLI = 315,
@@ -43,18 +43,18 @@ static const float MAXSPEED [] = {X_MAXSPEED,Y_MAXSPEED,Z_MAXSPEED,E_MAXSPEED},
 static const bool  INVERT   [] = {X_INVERT  ,Y_INVERT  ,Z_INVERT  ,E_INVERT  };
 
 struct Axis {
-  ULONG stepTime,
-        steps;
+  ULONG stepTime;
+  ULONG steps;
   SLONG lastMicros;
 };
 
-extern volatile Axis Axes[];
+//extern Axis Axes[];
 extern volatile SLONG axisPosition[];
 extern volatile SBYTE axisDirection[];
 void initAxes();
 void resetAxes();
 bool moveAxis(ParamIndex,float,float);
-void stepperWorker(const SLONG);
+void stepperWorker(const ULONG);
 void startStepperControl();
 void stopStepperControl();
 

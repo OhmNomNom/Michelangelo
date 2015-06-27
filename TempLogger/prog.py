@@ -1,11 +1,15 @@
 import serial,time
-ser = serial.Serial(6, baudrate=9600)
+ser = serial.Serial(2, baudrate=9600)
 
 print(ser.name)
 
 file = open("Output.txt","w")
+ser.write(b"M04\n")
+ser.flush()
+ser.readline().decode();
+t = time.clock()
 
-while True:
+while t <= 180:
     ser.write(b"M105\n")
     ser.flush()
     resp = ser.readline().decode();
@@ -16,4 +20,8 @@ while True:
     file.flush()
     time.sleep(0.1)
     
+
+ser.write(b"M03\n")
+ser.flush()
+ser.close()
 input()

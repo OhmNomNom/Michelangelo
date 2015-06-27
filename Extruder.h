@@ -6,17 +6,18 @@
 
 const float EXT_BETA  = 3950,  
             EXT_T0    = 298.15,
-            EXT_MAX_TEMP = 250.0f,
+            EXTRUDER_MAX_TEMP = 250.0f,
             EXT_R0    = 100000,
             
             ZERO_C    = 273.15,
             
-            KP        = 6,
-            KI        = 1,
-            KD        = 0;
+            KP        = 8  ,
+            KI        = 5  ,
+            KI2       = 0.9,
+            KD        = 60  ;
             
-const UBYTE THERMISTOR_PORT = A0,
-            HEATER_PORT     = 10;
+const UBYTE THERMISTOR_PORT = 10,
+            HEATER_PORT     = A1;
             
 const int   R_BALANCE       = 10000, //Ohm
             BIAS            = 45,
@@ -25,12 +26,12 @@ const int   R_BALANCE       = 10000, //Ohm
             
 extern float activeTemperature,
              idleTemperature,
-             currentTemperature;
+             temperatureTolerance;
             
 void initExtruder();
 float getExtruderTemperature();
 void temperatureWorker(const ULONG);
-void startTemperatureControl();
+void startTemperatureControl(bool);
 void stopTemperatureControl();
 
 #endif

@@ -1,6 +1,6 @@
 #include "Axes.h"
          
-volatile Axis Axes[4];
+Axis Axes[4];
 volatile SLONG axisPosition[4];
 volatile SBYTE axisDirection[4];
 
@@ -23,7 +23,7 @@ void resetAxes() {
 
 bool moveAxis(ParamIndex axis, float distance, float rate) {
   
-  if((FLAG[axis] & stateFlags) || (rate > MAXSPEED[axis])) return false;
+  if(isFlagSet(FLAG[axis]) || (rate > MAXSPEED[axis])) return false;
   if(distance == 0) return true;
 
   axisDirection[axis] = ((distance < 0) xor (INVERT[axis]))?0:1;
@@ -35,63 +35,66 @@ bool moveAxis(ParamIndex axis, float distance, float rate) {
   Axes[axis].steps      = distance * STEPSMILLI[axis];
   Axes[axis].stepTime   = round(1000000UL / (rate * STEPSMILLI[axis]));
   Axes[axis].lastMicros = 0;
-   
-  stateFlags |= FLAG[axis];
+  
+  setFlag(FLAG[axis]);
   return true;
 }
 
-void stepperWorker(const SLONG now) {
-  if(!((stateFlags & ~FLAG_ENABLE) & FLAGS_AXES)) {
+void stepperWorker(const ULONG now) {
+  
+  //if((stateFlags & FLAG_HOTEND_ON) && (abs(currentTemperature - activeTemperature) > temperatureTolerance)) return;
+  
+  if(!isFlagSet(FLAGS_AXES)) {
     stopStepperControl();
     return;
-  }
+  }    
  
-  if(FLAG[X] & stateFlags && now - Axes[X].lastMicros >= Axes[X].stepTime) {
+  if(isFlagSet(FLAG[X]) && now - Axes[X].lastMicros >= Axes[X].stepTime) {
     if(Axes[X].steps) {
       digitalWrite(MOVPORT[X], LOW);
       digitalWrite(MOVPORT[X], HIGH);
       Axes[X].steps--;
       Axes[X].lastMicros = now;
       axisPosition[X] += axisDirection[X];
-    } else stateFlags &= ~FLAG[X];
+    } else unsetFlag(FLAG[X]);
   }
   
-  if(FLAG[Y] & stateFlags && now - Axes[Y].lastMicros >= Axes[Y].stepTime) {
+  if(isFlagSet(FLAG[Y]) && now - Axes[Y].lastMicros >= Axes[Y].stepTime) {
     if(Axes[Y].steps) {
       digitalWrite(MOVPORT[Y], LOW);
       digitalWrite(MOVPORT[Y], HIGH);
       Axes[Y].steps--;
       Axes[Y].lastMicros = now;
       axisPosition[Y] += axisDirection[Y];
-    } else stateFlags &= ~FLAG[Y];
+    } else unsetFlag(FLAG[Y]);
   }
   
-  if(FLAG[Z] & stateFlags && now - Axes[Z].lastMicros >= Axes[Z].stepTime) {
+  if(isFlagSet(FLAG[Z]) && now - Axes[Z].lastMicros >= Axes[Z].stepTime) {
     if(Axes[Z].steps) {
       digitalWrite(MOVPORT[Z], LOW);
       digitalWrite(MOVPORT[Z], HIGH);
       Axes[Z].steps--;
       Axes[Z].lastMicros = now;
       axisPosition[Z] += axisDirection[Z];
-    } else stateFlags &= ~FLAG[Z];
+    } else unsetFlag(FLAG[Z]);
   }
   
-  if(FLAG[E] & stateFlags && now - Axes[E].lastMicros >= Axes[E].stepTime) {
+  if(isFlagSet(FLAG[E]) && now - Axes[E].lastMicros >= Axes[E].stepTime) {
     if(Axes[E].steps) {
       digitalWrite(MOVPORT[E], LOW);
       digitalWrite(MOVPORT[E], HIGH);
       Axes[E].steps--;
       Axes[E].lastMicros = now;
       axisPosition[E] += axisDirection[E];
-    } else stateFlags &= ~FLAG[E];
+    } else unsetFlag(FLAG[E]);
   }
 }
 
 void startStepperControl() {
-  stateFlags |= FLAG_ENABLE;
+  setFlag(FLAG_ENABLE);
 }
 
 void stopStepperControl() {
-  stateFlags &= ~FLAG_ENABLE;
+  unsetFlag(FLAG_ENABLE);
   doneMoving();
 }

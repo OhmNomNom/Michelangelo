@@ -14,18 +14,19 @@ void setup() {
 void loop() {
     while (Serial.available()) interpret(Serial.read());
     flushSerial();
+    delay(100);
 }
 
 void timerInterrupt() {
-  static ULONG lastPIDMicros = 0;
+  static ULONG lastPIDMicros = 0,
+    prevNow = 0;
   const ULONG now = micros();
+  timeInterval = now - prevNow;
+  prevNow = now;
 
-  if(stateFlags & FLAG_ENABLE) stepperWorker(now);
+  if(isFlagSet(FLAG_ENABLE)) stepperWorker(now);
 
-  if(getExtruderTemperature() > EXT_MAX_TEMP)
-    analogWrite(HEATER_PORT,0);
-  
-  else if((stateFlags & FLAG_HOTEND_ON) && (lastPIDMicros + PID_PERIOD <= now)) {
+  if(isFlagSet(FLAG_HOTEND_ON) && lastPIDMicros + PID_PERIOD <= now) {
     lastPIDMicros = now;
     temperatureWorker(now); 
   }

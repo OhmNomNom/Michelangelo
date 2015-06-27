@@ -3,6 +3,7 @@
 UBYTE stateFlags = 0x00;
 char serialBuffer[64];
 UBYTE bufferPos = 0;
+volatile ULONG timeInterval = 4;
 
 //Needed to make one thatreturns 0 on all invalid inputs
 UINT sParseUINT(const char *str) {
@@ -39,16 +40,16 @@ void addToBufferS(const char *data, UBYTE len) {
   bufferPos += len;
 }
 
-void addToBufferF(const float &data) {
+void addToBufferF(float data) {
   dtostrf(data,1,2,serialBuffer+bufferPos);
   while(serialBuffer[++bufferPos] != '\0') continue;
 }
 
-void addToBufferC(const char &data) {
+void addToBufferC(char data) {
   serialBuffer[bufferPos++] = data;
 }
 
-void addToBufferI(const int &data) {
+void addToBufferI(long data) {
   bufferPos += sprintf(serialBuffer+bufferPos, "%d", data);
 } 
 
