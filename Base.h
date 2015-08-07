@@ -52,6 +52,7 @@ void  addToBufferS(const char*,UBYTE);
 void  addToBufferF(float);
 void  addToBufferC(char);
 void  addToBufferI(long);
+void  addToBufferUI(ULONG);
 void  flushSerial(void);
 
 #endif

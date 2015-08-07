@@ -105,6 +105,8 @@ reparse:
       command = CMD_SETPOS;
     else if (strEqual(cmdBuffer,"M71"))
       command = CMD_GET_TIME;
+    else if (strEqual(cmdBuffer,"M74"))
+      command = CMD_GET_STEPS;
     else {
       cmdState = STATE_INVALID;
       break;
@@ -215,7 +217,7 @@ void execCommand() {
     break;
   case CMD_GET_TIME:
     addToBufferS("M71 T",5);
-    addToBufferI(micros());
+    addToBufferUI(micros());
     addToBufferS(" S",2);    
     addToBufferI(timeInterval);
     addToBufferC('\n');
@@ -242,6 +244,23 @@ void execCommand() {
   case CMD_HOTEND_OFF:
     stopTemperatureControl();
     acknowledgeCommand();
+    break;
+  case CMD_GET_STEPS:
+    addToBufferS("STPS N",6);
+    addToBufferI(cmdLine);
+    addToBufferS(" X",2);
+    addToBufferF(Axes[X].steps);
+    addToBufferS(" Y",2);
+    addToBufferF(Axes[Y].steps);
+    addToBufferS(" Z",2);
+    addToBufferF(Axes[Z].steps);
+    addToBufferS(" E",2);
+    addToBufferF(Axes[E].steps);
+    addToBufferS(" F",2);
+    addToBufferF(Axes[X].lastMicros);
+    addToBufferS(" S",2);
+    addToBufferF(Axes[X].stepTime);
+    addToBufferC('\n');
     break;
   }
   interrupts();
@@ -296,14 +315,20 @@ void rapidPositioning() {
   float feedRate = NAN;
   if(cmdParams[F] > 0) feedRate = cmdParams[F];
   
-  acknowledgeCommand();
-  if(!isnan(cmdParams[X])) moveAxis(X,motion[X],isnan(feedRate)?MAXSPEED[X]:feedRate);
-  if(!isnan(cmdParams[Y])) moveAxis(Y,motion[Y],isnan(feedRate)?MAXSPEED[Y]:feedRate);
-  if(!isnan(cmdParams[Z])) moveAxis(Z,motion[Z],isnan(feedRate)?MAXSPEED[Z]:feedRate);
-  if(!isnan(cmdParams[E])) moveAxis(E,cmdParams[E],isnan(feedRate)?MAXSPEED[E]:feedRate);
+  bool fail = false;
+  if(!isnan(cmdParams[X])) if(!moveAxis(X,motion[X],isnan(feedRate)?MAXSPEED[X]:feedRate)) fail = true;
+  if(!isnan(cmdParams[Y])) if(!moveAxis(Y,motion[Y],isnan(feedRate)?MAXSPEED[Y]:feedRate)) fail = true;
+  if(!isnan(cmdParams[Z])) if(!moveAxis(Z,motion[Z],isnan(feedRate)?MAXSPEED[Z]:feedRate)) fail = true;
+  if(!isnan(cmdParams[E])) if(!moveAxis(E,cmdParams[E],isnan(feedRate)?MAXSPEED[E]:feedRate)) fail = true;
 
-  movementLine = cmdLine;
-  startStepperControl();
+  if(!fail) {
+    acknowledgeCommand();
+    movementLine = cmdLine;
+    startStepperControl();
+  } else {
+    invalidCommand();
+    resetAxes();
+  }
 }
 void linearInterpolation() {
   if(cmdParams[F] > MAXSPEED_LINEAR || cmdParams[S] > MAXSPEED[E]) {
@@ -380,15 +405,14 @@ void cmdResume() {
   setFlag(FLAG_ENABLE);
 }
 void cmdRecover() {
-  resetAxes(); 
   if(isFlagSet(FLAG_ENABLE) || !isFlagSet(FLAGS_AXES)) {
     invalidCommand();
     return;
   }
+  resetAxes(); 
   addToBufferS("RECOVER N",9);
   addToBufferI(cmdLine);
   addToBufferC('\n');
-  unsetFlag(FLAGS_AXES);
 }
 
 void cmdPosition() {
